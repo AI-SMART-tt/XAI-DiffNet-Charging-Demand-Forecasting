@@ -4,7 +4,7 @@
 ### Paper Title: Multi-Scale Explainable Graph Learning for Electric Vehicle Charging Demand Prediction in Urban Energy Systems
 ---
 
-**XAI-DiffNet** is an end-to-end deep learning framework designed to deliver **trustworthy, accurate, and multi-scale interpretable forecasts** for electric vehicle (EV) charging demand in urban energy systems. The framework is composed of two core, intrinsically linked modules:
+**XAI-DiffNet** is a deep learning framework designed to deliver **trustworthy, accurate, and multi-scale interpretable forecasts** for electric vehicle (EV) charging demand in urban energy systems. The framework is composed of two core, intrinsically linked modules:
 
 1.  **Forecasting Module**: A novel **Dual-Channel Diffusion Graph Recurrent Network (DC-DGRN)** that achieves state-of-the-art accuracy by capturing complex spatiotemporal dependencies. It operates on a sophisticated graph that models real-world urban dynamics.
 2.  **Interpretability Module**: A **Multi-Scale Interpretation Generator** that opens the "black box" of the deep learning model. It provides hierarchical explanations to reveal *why* a prediction was made, building trust and providing actionable insights for grid operators and urban planners.
