@@ -54,14 +54,15 @@ XAI-DiffNet/
 │   │   └── charging_demand.csv # Example time-series charging demand data
 │   └── data_geo/
 │       └── shanghai_districts.shp # Geospatial data for map visualizations
-├── outputs/
-│   ├── checkpoints/            # Saved model weights (e.g., best_model.pth)
-│   ├── figures/                # All generated figures and visualizations
+├── results/
 │   │   ├── microscopic/        # Micro-level interpretation maps
 │   │   ├── mesoscopic/         # Meso-level dependency maps
 │   │   └── macroscopic/        # Macro-level systemic importance maps
 │   ├── logs/                   # Log files for training and analysis
-│   └── results/                # CSV files with performance metrics and interpretations
+│── figures/                # All generated figures and visualizations\
+│── checkpoints/            # Saved model weights (e.g., best_model.pth)
+├── loss/
+├── metrics/               # CSV files with performance metrics and interpretations
 └── requirements.txt            # Required Python packages
 ```
 
