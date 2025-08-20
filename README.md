@@ -1,6 +1,8 @@
 # XAI-DiffNet: A Trustworthy AI Framework for EV Charging Demand Forecasting
 
-# Paper Title: Multi-Scale Explainable Graph Learning for Electric Vehicle Charging Demand Prediction in Urban Energy Systems
+---
+### Paper Title: Multi-Scale Explainable Graph Learning for Electric Vehicle Charging Demand Prediction in Urban Energy Systems
+---
 
 **XAI-DiffNet** is an end-to-end deep learning framework designed to deliver **trustworthy, accurate, and multi-scale interpretable forecasts** for electric vehicle (EV) charging demand in urban energy systems. The framework is composed of two core, intrinsically linked modules:
 
@@ -9,6 +11,7 @@
 
 This system is specifically designed to address the trust deficit in AI for critical infrastructure, moving beyond simple prediction accuracy to provide transparent, verifiable, and decision-focused intelligence.
 
+---
 ## Model Details
 
 ### 1\. Forecasting Module
@@ -31,6 +34,7 @@ The interpretability module makes the model's decisions transparent by providing
   * **Mesoscopic Level**: Quantifies how dependent a region's forecast is on its local neighborhood, revealing areas with robust, self-reliant patterns versus those that are highly coupled.
   * **Macroscopic Level**: Assesses the systemic importance of each region to the entire network's forecast accuracy, identifying critical hubs and systemic vulnerabilities.
 
+---
 ## Project Structure
 
 ```
@@ -60,6 +64,7 @@ XAI-DiffNet/
 └── requirements.txt            # Required Python packages
 ```
 
+---
 ## Environment Requirements
 
 ### Installing Dependencies
@@ -74,6 +79,7 @@ Or manually install the following core dependencies:
 pip install torch numpy pandas scikit-learn matplotlib geopandas seaborn
 ```
 
+---
 ## Usage Instructions
 
 The entire workflow can be run and configured via the `main.py` and `config.py` files.
@@ -110,6 +116,13 @@ The script will perform the following steps:
 4.  **Interpretability Mask Training**: Trains the learnable perturbation masks to explain the model's behavior.
 5.  **Multi-Scale Analysis & Visualization**: Generates and saves all interpretation results and figures to the `outputs/` directory.
 
+---
+## Baseline Models Reference
+
+1. Graph Neural Network (GNN) Based Baseline Models
+  * **Reference Link:** [https://github.com/AIcharon-stt/Traffic-prediction-models-GNN](https://github.com/AIcharon-stt/Traffic-prediction-models-GNN)
+
+---
 ## Output Results
 
 ### Forecasting Outputs
@@ -129,14 +142,15 @@ The script will perform the following steps:
       * `outputs/figures/mesoscopic/dependency_map.png`: A city-wide map showing the local dependency of each region.
       * `outputs/figures/macroscopic/systemic_importance_map.png`: A city-wide map highlighting the most systemically critical hubs.
 
------
+---
 
 ## Citation
 
 If you use the XAI-DiffNet model or ideas from this research in your work, please cite our paper:
 
+
 ```
-XXXX
+To be added
 ```
 
-For any questions or collaborations, please feel free to contact us at [tongtongshi@tongji.edu.cn].
+For any questions, please contact us at [ttshi3514@163.com] or [1765309248@qq.com].
