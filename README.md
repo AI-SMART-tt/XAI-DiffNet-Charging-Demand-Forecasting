@@ -1,7 +1,5 @@
 # XAI-DiffNet: A Trustworthy AI Framework for EV Charging Demand Forecasting
-
----
-### Paper Title: Multi-Scale Explainable Graph Learning for Electric Vehicle Charging Demand Prediction in Urban Energy Systems
+—— Multi-Scale Explainable Graph Learning for Electric Vehicle Charging Demand Prediction in Urban Energy Systems
 
 <img width="944" height="587" alt="1" src="https://github.com/user-attachments/assets/c66be68b-8d2c-45e6-92cb-29d12cb39555" />
 
