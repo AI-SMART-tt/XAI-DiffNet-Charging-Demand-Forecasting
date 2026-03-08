@@ -169,8 +169,9 @@ class SmallWorldNetworkBuilder:
             S_fused = self.fuse_semantic_matrices(weights_dict)
             W_star_df, _ = self.construct_small_world_network(S_fused)
             W_star = W_star_df.values
+            A_bin = (self.adj_df.values > 0).astype(np.float64)
 
-            mae = evaluate_fn(W_star)
+            mae = evaluate_fn(W_star, A_bin)
 
             if mae < best_mae:
                 best_mae = mae
@@ -417,7 +418,13 @@ class XAIDiffNet(nn.Module):
 
         return P_fwd, P_bwd
 
-    def forward(self, x, adj_matrix: np.ndarray,
+    @staticmethod
+    def _decompose_graph(w_star: torch.Tensor, a_bin: torch.Tensor):
+        w_local = w_star * a_bin
+        w_global = w_star * (1.0 - a_bin)
+        return w_local, w_global
+
+    def forward(self, x, adj_matrix: np.ndarray, a_binary: np.ndarray,
                 spatial_mask_1=None, spatial_mask_2=None,
                 temporal_mask=None):
         batch_size = x.size(0)
@@ -426,19 +433,21 @@ class XAIDiffNet(nn.Module):
         if temporal_mask is not None:
             x = x * (torch.tanh(temporal_mask) + 1).unsqueeze(0).unsqueeze(-1)
 
-        adj_torch = torch.from_numpy(adj_matrix).float().to(device)
+        w_star_torch = torch.from_numpy(adj_matrix).float().to(device)
+        a_bin_torch = torch.from_numpy(a_binary).float().to(device)
 
-        adj_path1 = adj_torch.clone()
+        w_local, w_global = self._decompose_graph(w_star_torch, a_bin_torch)
+
         if spatial_mask_1 is not None:
             sym_mask1 = (spatial_mask_1 + spatial_mask_1.T) / 2
-            adj_path1 = adj_path1 * (torch.tanh(sym_mask1) + 1)
-        supports1 = self._compute_supports(adj_path1)
+            w_local = w_local * (torch.tanh(sym_mask1) + 1)
 
-        adj_path2 = adj_torch.clone()
         if spatial_mask_2 is not None:
             sym_mask2 = (spatial_mask_2 + spatial_mask_2.T) / 2
-            adj_path2 = adj_path2 * (torch.tanh(sym_mask2) + 1)
-        supports2 = self._compute_supports(adj_path2)
+            w_global = w_global * (torch.tanh(sym_mask2) + 1)
+
+        supports1 = self._compute_supports(w_local)
+        supports2 = self._compute_supports(w_global)
 
         h_enc = [torch.zeros(batch_size, self.num_nodes, self.rnn_units, device=device)
                  for _ in range(self.num_rnn_layers)]
@@ -479,7 +488,7 @@ class ModelTrainer:
         self.scaler = scaler
         self.best_model_path = Path(config.OUTPUT_DIR) / 'best_gnn_model.pth'
 
-    def train_gnn(self, train_loader, val_loader, adj_matrix, num_epochs=None):
+    def train_gnn(self, train_loader, val_loader, adj_matrix, a_binary, num_epochs=None):
         epochs = num_epochs or self.config.NUM_EPOCHS_GNN
         optimizer = optim.Adam(self.model.parameters(), lr=self.config.LEARNING_RATE_GNN)
         best_val_loss = float('inf')
@@ -492,7 +501,7 @@ class ModelTrainer:
             train_loss = 0
             for x_b, y_b in train_loader:
                 optimizer.zero_grad()
-                out = self.model(x_b, adj_matrix)
+                out = self.model(x_b, adj_matrix, a_binary)
                 loss = self.criterion(out, y_b.squeeze(-1))
                 loss.backward()
                 optimizer.step()
@@ -503,7 +512,7 @@ class ModelTrainer:
             val_loss = 0
             with torch.no_grad():
                 for x_b, y_b in val_loader:
-                    out = self.model(x_b, adj_matrix)
+                    out = self.model(x_b, adj_matrix, a_binary)
                     val_loss += self.criterion(out, y_b.squeeze(-1)).item()
             avg_val = val_loss / max(len(val_loader), 1)
 
@@ -522,12 +531,12 @@ class ModelTrainer:
         print(f"  Training complete. Best val loss: {best_val_loss:.5f}")
         return avg_epoch_time
 
-    def evaluate_on_val_mae(self, val_loader, adj_matrix):
+    def evaluate_on_val_mae(self, val_loader, adj_matrix, a_binary):
         self.model.eval()
         preds, actuals = [], []
         with torch.no_grad():
             for x_b, y_b in val_loader:
-                out = self.model(x_b, adj_matrix)
+                out = self.model(x_b, adj_matrix, a_binary)
                 preds.append(out.cpu().numpy())
                 actuals.append(y_b.cpu().numpy())
 
@@ -546,7 +555,7 @@ class ModelTrainer:
         mae = mean_absolute_error(actuals_inv.flatten(), preds_inv.flatten())
         return mae
 
-    def train_masks(self, train_loader, adj_matrix, num_nodes):
+    def train_masks(self, train_loader, adj_matrix, a_binary, num_nodes):
         print(f"\nStarting mask training (Epochs: {self.config.NUM_EPOCHS_MASK})...")
         device = self.config.DEVICE
 
@@ -563,7 +572,7 @@ class ModelTrainer:
             epoch_loss = 0
             for x_b, y_b in train_loader:
                 optimizer.zero_grad()
-                out = self.model(x_b, adj_matrix, sm1, sm2, tm)
+                out = self.model(x_b, adj_matrix, a_binary, sm1, sm2, tm)
                 loss = self.criterion(out, y_b.squeeze(-1))
                 loss.backward()
                 optimizer.step()
@@ -577,7 +586,7 @@ class ModelTrainer:
         print("Mask training complete.")
         return sm1, sm2, tm
 
-    def evaluate_model(self, test_loader, adj_matrix,
+    def evaluate_model(self, test_loader, adj_matrix, a_binary,
                        sm1=None, sm2=None, tm=None, load_best=True):
         if load_best and self.best_model_path.exists():
             self.model.load_state_dict(
@@ -587,7 +596,7 @@ class ModelTrainer:
         preds, actuals = [], []
         with torch.no_grad():
             for x_b, y_b in test_loader:
-                out = self.model(x_b, adj_matrix, sm1, sm2, tm)
+                out = self.model(x_b, adj_matrix, a_binary, sm1, sm2, tm)
                 preds.append(out.cpu().numpy())
                 actuals.append(y_b.cpu().numpy())
 
@@ -645,6 +654,7 @@ def main():
 
         node_ids = adj_df.index.tolist()
         num_nodes = len(node_ids)
+        A_binary = (adj_df.values > 0).astype(np.float64)
 
         print("\n" + "=" * 60)
         print("  Stage 2: Data Preparation")
@@ -660,7 +670,7 @@ def main():
 
         if config.EXECUTION_MODE == 'fused':
 
-            def evaluate_weight_combination(W_star: np.ndarray):
+            def evaluate_weight_combination(W_star: np.ndarray, A_bin: np.ndarray):
                 model = XAIDiffNet(
                     num_nodes=num_nodes,
                     seq_len=config.SEQ_LEN,
@@ -672,9 +682,9 @@ def main():
                 ).to(config.DEVICE)
 
                 trainer = ModelTrainer(model, config, dp.scaler)
-                trainer.train_gnn(train_loader, val_loader, W_star,
+                trainer.train_gnn(train_loader, val_loader, W_star, A_bin,
                                   num_epochs=config.GRID_SEARCH_EPOCHS)
-                mae = trainer.evaluate_on_val_mae(val_loader, W_star)
+                mae = trainer.evaluate_on_val_mae(val_loader, W_star, A_bin)
                 return mae
 
             best_weights, best_mae = sw_builder.grid_search_fusion_weights(
@@ -715,9 +725,9 @@ def main():
         print(f"Model parameters: {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
         trainer = ModelTrainer(model, config, dp.scaler)
 
-        avg_epoch_time = trainer.train_gnn(train_loader, val_loader, W_star)
+        avg_epoch_time = trainer.train_gnn(train_loader, val_loader, W_star, A_binary)
 
-        gnn_metrics = trainer.evaluate_model(test_loader, W_star, load_best=True)
+        gnn_metrics = trainer.evaluate_model(test_loader, W_star, A_binary, load_best=True)
         print_metrics(gnn_metrics, "Base GNN Model - Test Set Performance")
 
         print("\n" + "=" * 60)
@@ -727,10 +737,10 @@ def main():
         model.load_state_dict(
             torch.load(trainer.best_model_path, map_location=config.DEVICE))
 
-        sm1, sm2, tm = trainer.train_masks(train_loader, W_star, num_nodes)
+        sm1, sm2, tm = trainer.train_masks(train_loader, W_star, A_binary, num_nodes)
 
         masked_metrics = trainer.evaluate_model(
-            test_loader, W_star, sm1, sm2, tm, load_best=False)
+            test_loader, W_star, A_binary, sm1, sm2, tm, load_best=False)
         print_metrics(masked_metrics, "Masked GNN Model - Test Set Performance")
 
         results = pd.DataFrame([
